@@ -10,6 +10,8 @@ PyTorch LSTM), causal promo-uplift analysis scored against ground truth, and a
 drift monitor that grades its own detection quality. Validated on real Walmart
 data (M5) across three forecaster regimes.
 
+![SKU Sentinel landing page](docs/screenshots/landing.png)
+
 A forecast that quietly degrades is worse than no forecast: teams keep acting on it.
 At replenishment scale (thousands of SKUs, weekly cadence) no human can review every
 prediction, governance has to be *statistical* and *system-level*: tolerance bands,
@@ -46,6 +48,16 @@ The operating point is a choice, not an accident: model-health alarms must persi
 across three consecutive weekly checkpoints. That trades ~2 weeks of confirmation
 delay for an alarm stream precise enough that operations teams will actually trust it.
 Alert fatigue is how monitoring systems die.
+
+## Screenshots
+
+| Exception queue | Model bench |
+|---|---|
+| ![Exception queue](docs/screenshots/queue.png) | ![Model bench](docs/screenshots/bench.png) |
+
+| Explain: causal uplift | Fleet health report |
+|---|---|
+| ![Explain page](docs/screenshots/explain.png) | ![Report](docs/screenshots/report.png) |
 
 ## Setup, step by step
 
