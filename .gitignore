@@ -1,0 +1,20 @@
+# environments
+.venv/
+__pycache__/
+*.pyc
+
+# OS noise
+.DS_Store
+
+# datasets (large; downloaded from Kaggle, see validation_m5.py)
+data/
+
+# generated outputs (recreated by run_demo.py / validation_m5.py)
+output/
+output_m5/
+
+# local scratch
+PROJECT_GUIDE copy.md
+
+# study notes (kept local)
+PROJECT_GUIDE.md
