@@ -184,17 +184,24 @@ Setup instructions are in the file's docstring (free Kaggle account required).
 
 ```
 sentinel/
-  simulate.py    synthetic panel + ground-truth drift injection (7 event types)
+  simulate.py    synthetic retail panel + ground-truth drift injection (7 event types)
   forecast.py    frozen per-SKU baseline forecaster
   monitor.py     the governance engine: 8 checks, calibrated per SKU
-  triage.py      revenue-at-risk ranked exception queue
+  triage.py      revenue-at-risk ranked exception queue, plain-language explanations
   evaluate.py    precision / recall / delay vs. injected ground truth
+  models.py      the 8-model forecasting bench (4 families)
+  explain.py     driver decomposition + causal promo-uplift estimation
   report.py      self-contained HTML fleet-health report
+  config.py      config.yaml loader with safe defaults
+flask_app.py     web console: pages, JSON API, CSV-upload monitoring
+templates/       Jinja pages (landing, queue, bench, explain, scorecard, upload)
+static/          mission-control theme stylesheet
 run_demo.py      end-to-end synthetic demo
-validation_m5.py same engine on real Walmart (M5) data
-app.py           Streamlit console
+validation_m5.py three-regime validation on real Walmart (M5) data
+config.yaml      every tunable in one place
 ```
 
 ---
 
-Built by **Vinith Kumar**, Python · scikit-learn · SciPy · Plotly · Streamlit.
+Built by **Vinith Kumar** · Python · scikit-learn · SciPy · statsmodels ·
+XGBoost · LightGBM · PyTorch · Flask · Plotly
