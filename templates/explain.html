@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Explain | SKU Sentinel{% endblock %}
+{% block content %}
+  <h1>Explain</h1>
+  <p class="sub">Why demand moves, not just what it will be. Driver effect sizes
+  per product, and the classic causal trap: naive promo uplift vs. a
+  confounder-adjusted estimate, both scored against the simulator's true lift.</p>
+
+  <div class="card">
+    <label>Product
+      <select id="sku">
+        {% for s in skus %}<option value="{{ s }}">{{ labels.get(s, s) }} ({{ s }})</option>{% endfor %}
+      </select>
+    </label>
+    <button id="go">Explain this product</button>
+    <span id="status" class="dim"></span>
+  </div>
+
+  <div id="skuresults" style="display:none">
+    <div class="kpis" id="drivercards"></div>
+    <div id="driverchart" class="chart"></div>
+    <div class="note" id="upliftnote"></div>
+  </div>
+
+  <h2>The causal trap, fleet-wide</h2>
+  <p class="sub">Each dot is a promoted product: estimated promo lift vs. the TRUE lift the
+  simulator used. The naive estimate (promo days ÷ normal days) inherits weekday and
+  seasonal confounding; the regression-adjusted estimate controls for them.
+  Closer to the diagonal = better causal recovery.</p>
+  <div id="fleetchart" class="chart"><div class="dim" style="padding:20px">Loading fleet uplift…</div></div>
+  <div class="kpis" id="fleetcards"></div>
+
+<script>
+  const pct = x => (x >= 0 ? "+" : "") + (x * 100).toFixed(1) + "%";
+
+  document.getElementById("go").onclick = async () => {
+    const sku = document.getElementById("sku").value;
+    document.getElementById("status").textContent = "computing…";
+    const r = await fetch(`/api/explain/${sku}`);
+    const d = await r.json();
+    document.getElementById("status").textContent = "";
+    document.getElementById("skuresults").style.display = "block";
+
+    const dr = d.drivers;
+    document.getElementById("drivercards").innerHTML = `
+      <div class="kpi"><div class="v">${pct(dr.weekday_swing)}</div>
+        <div class="l">weekday swing (${dr.worst_weekday} → ${dr.best_weekday})</div></div>
+      <div class="kpi"><div class="v">${pct(dr.season_swing)}</div><div class="l">seasonal swing</div></div>
+      <div class="kpi"><div class="v">${pct(dr.trend_per_year)}</div><div class="l">trend per year</div></div>
+      <div class="kpi"><div class="v">${dr.promo_lift != null ? pct(dr.promo_lift) : "-"}</div>
+        <div class="l">promo lift (adjusted)</div></div>`;
+
+    const bars = [
+      {k: "Weekday pattern", v: dr.weekday_swing},
+      {k: "Seasonality", v: dr.season_swing},
+      {k: "Trend / year", v: Math.abs(dr.trend_per_year)},
+    ];
+    if (dr.promo_lift != null) bars.push({k: "Promotion", v: dr.promo_lift});
+    bars.sort((a, b) => a.v - b.v);
+    Plotly.newPlot("driverchart", [{
+      x: bars.map(b => b.v * 100), y: bars.map(b => b.k),
+      type: "bar", orientation: "h", marker: {color: "#2563eb"},
+    }], {height: 260, margin: {l: 130, r: 30, t: 20, b: 40},
+         xaxis: {title: "effect size (%)"}}, {displayModeBar: false, responsive: true});
+
+    const u = d.uplift;
+    document.getElementById("upliftnote").innerHTML = u
+      ? `<b>Promo uplift, two ways:</b> naive comparison says
+         <b>×${u.naive_lift}</b>; after controlling for weekday &amp; season, the
+         adjusted estimate is <b>×${u.adjusted_lift}</b>. When these disagree, the
+         naive number is the one lying to you.`
+      : "This product isn't promoted often enough to estimate uplift.";
+  };
+
+  (async () => {
+    const r = await fetch("/api/uplift");
+    const d = await r.json();
+    if (!d.skus || !d.skus.length) return;
+    const hasTruth = d.skus.some(s => s.true_lift != null);
+    if (hasTruth) {
+      const t = d.skus.map(s => s.true_lift);
+      const mk = (key, name, color) => ({
+        x: t, y: d.skus.map(s => s[key]), name, mode: "markers",
+        text: d.skus.map(s => s.product), hovertemplate: "%{text}<br>true ×%{x} → est ×%{y}<extra>" + name + "</extra>",
+        marker: {color, size: 7, opacity: 0.75},
+      });
+      const lo = Math.min(...t) - 0.1, hi = Math.max(...t) + 0.1;
+      Plotly.newPlot("fleetchart", [
+        mk("naive_lift", "naive", "#f59e0b"),
+        mk("adjusted_lift", "adjusted", "#2563eb"),
+        {x: [lo, hi], y: [lo, hi], mode: "lines", name: "perfect recovery",
+         line: {color: "#94a3b8", dash: "dash"}},
+      ], {height: 440, margin: {l: 50, r: 20, t: 20, b: 45},
+          xaxis: {title: "true promo lift (simulator ground truth)"},
+          yaxis: {title: "estimated promo lift"}}, {displayModeBar: false, responsive: true});
+      const sc = d.scorecard;
+      document.getElementById("fleetcards").innerHTML = `
+        <div class="kpi"><div class="v">${sc.n_skus}</div><div class="l">promoted SKUs scored</div></div>
+        <div class="kpi"><div class="v">${sc.adjusted_mae}</div><div class="l">adjusted estimate MAE</div></div>
+        <div class="kpi"><div class="v">${sc.naive_mae}</div><div class="l">naive estimate MAE</div></div>
+        <div class="kpi"><div class="v">${sc.adjusted_corr} vs ${sc.naive_corr}</div>
+          <div class="l">correlation with truth (adj vs naive)</div></div>`;
+    } else {
+      document.getElementById("fleetchart").innerHTML =
+        "<div class='dim' style='padding:20px'>No ground-truth lift available for this dataset.</div>";
+    }
+  })();
+</script>
+{% endblock %}

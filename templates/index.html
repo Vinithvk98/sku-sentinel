@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+{% if not ready %}
+  <div class="error">No demo output found. Run <code>python run_demo.py</code> first.
+  (The "your data" page works without it.)</div>
+{% else %}
+  <h1>Exception queue</h1>
+  <p class="sub">Tolerance bands, drift tests and an impact-ranked queue,
+  so thousands of SKUs don't need thousands of sign-offs.</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">{{ kpis.n_skus }}</div><div class="l">SKUs monitored</div></div>
+    <div class="kpi"><div class="v green">{{ kpis.healthy }}</div><div class="l">Healthy</div></div>
+    <div class="kpi"><div class="v amber">{{ kpis.watch }}</div><div class="l">Watchlist</div></div>
+    <div class="kpi"><div class="v red">{{ kpis.exceptions }}</div><div class="l">Exceptions</div></div>
+    <div class="kpi"><div class="v">${{ "{:,.0f}".format(kpis.rev_at_risk) }}</div><div class="l">Revenue at risk (28d)</div></div>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>Product</th><th>Status</th><th>Class</th><th>Checks fired</th>
+      <th>First detected</th><th>WAPE base → now</th><th>Rev at risk</th><th>What happened</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><a href="{{ url_for('sku_page', sku=r.sku) }}"><b>{{ r.product or r.sku }}</b></a>
+            <div class="dim">{{ r.sku }} · {{ r.category }}</div></td>
+        <td><span class="pill {{ r.status }}">{{ r.status }}</span></td>
+        <td><span class="pill {{ 'data' if r.issue_class == 'data quality' else 'model' }}">{{ r.issue_class }}</span></td>
+        <td class="mono">{{ r.checks_fired }}</td>
+        <td class="mono">{{ r.first_detected.strftime('%Y-%m-%d') }}</td>
+        <td class="mono">{{ '%.2f'|format(r.wape_baseline) }} → {{ '%.2f'|format(r.wape_now) }}</td>
+        <td class="mono">${{ "{:,.0f}".format(r.revenue_at_risk_28d) }}</td>
+        <td class="small">{{ r.explanation }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+{% endblock %}

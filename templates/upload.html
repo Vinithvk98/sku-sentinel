@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Monitor your own forecasts</h1>
+  <p class="sub">Upload a CSV with columns <code>sku, date, actual, forecast</code>
+  (one row per product per day). Sentinel calibrates each product's normal error on
+  the first part of its history, then monitors the rest.
+  <a href="{{ url_for('sample_csv') }}">Download a sample CSV</a>.</p>
+
+  <!-- enctype="multipart/form-data" is REQUIRED for file uploads -->
+  <form method="post" enctype="multipart/form-data" class="card">
+    <label>CSV file <input type="file" name="csv_file" accept=".csv" required></label>
+    <label>History used for calibration
+      <select name="calib_frac">
+        <option value="0.4">40%</option>
+        <option value="0.5" selected>50%</option>
+        <option value="0.6">60%</option>
+        <option value="0.7">70%</option>
+      </select>
+    </label>
+    <button type="submit">Run Sentinel</button>
+  </form>
+
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+  {% if result %}
+    <div class="kpis">
+      <div class="kpi"><div class="v">{{ result.kpis.n_skus }}</div><div class="l">Products monitored</div></div>
+      <div class="kpi"><div class="v green">{{ result.kpis.healthy }}</div><div class="l">Healthy</div></div>
+      <div class="kpi"><div class="v amber">{{ result.kpis.watch }}</div><div class="l">Watchlist</div></div>
+      <div class="kpi"><div class="v red">{{ result.kpis.exceptions }}</div><div class="l">Exceptions</div></div>
+    </div>
+    {% if result.skipped %}<p class="dim">Skipped {{ result.skipped }} product(s) with too little history.</p>{% endif %}
+    <p class="dim">Without price data, revenue at risk is in units, not dollars.</p>
+
+    {% if result.rows %}
+    <table>
+      <thead><tr><th>Product</th><th>Status</th><th>Checks fired</th><th>First detected</th><th>What happened</th></tr></thead>
+      <tbody>
+      {% for r in result.rows %}
+        <tr>
+          <td><a href="{{ url_for('sku_page', sku=r.sku, src='upload') }}"><b>{{ r.sku }}</b></a></td>
+          <td><span class="pill {{ r.status }}">{{ r.status }}</span></td>
+          <td class="mono">{{ r.checks_fired }}</td>
+          <td class="mono">{{ r.first_detected.strftime('%Y-%m-%d') }}</td>
+          <td class="small">{{ r.explanation }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <div class="success">No exceptions, every forecast is inside its calibrated tolerance. 🎉</div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

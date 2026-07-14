@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Detection scorecard</h1>
+  <p class="sub">28 drift &amp; data-quality events were injected with known dates,
+  these numbers are measured against ground truth, not eyeballed.</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">{{ '%.0f'|format(sc.recall * 100) }}%</div><div class="l">Recall, events caught</div></div>
+    <div class="kpi"><div class="v">{{ '%.0f'|format(sc.precision * 100) }}%</div><div class="l">Precision, alarms that were real</div></div>
+    <div class="kpi"><div class="v">{{ '%.0f'|format(sc.median_detection_delay_days) }}d</div><div class="l">Median detection delay</div></div>
+    <div class="kpi"><div class="v">{{ sc.false_positives }}</div><div class="l">False alarms / 6 months</div></div>
+  </div>
+
+  <h2>By event type</h2>
+  <table>
+    <thead><tr><th>Event type</th><th>Events</th><th>Detected</th><th>Recall</th></tr></thead>
+    <tbody>
+    {% for r in sc.by_type %}
+      <tr><td>{{ r.event_type }}</td><td class="mono">{{ r.events }}</td>
+      <td class="mono">{{ r.detected }}</td><td class="mono">{{ '%.0f'|format(r.recall * 100) }}%</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Every injected event</h2>
+  <table>
+    <thead><tr><th>Product</th><th>Event</th><th>Event date</th><th>Detected</th>
+    <th>Delay (days)</th><th>Watchlisted</th></tr></thead>
+    <tbody>
+    {% for e in sc.per_event %}
+      <tr>
+        <td><a href="{{ url_for('sku_page', sku=e.sku) }}">{{ e.product or e.sku }}</a>
+            <div class="dim">{{ e.sku }}</div></td>
+        <td class="mono">{{ e.event_type }}</td>
+        <td class="mono">{{ e.event_date }}</td>
+        <td>{{ '✅' if e.detected else '❌' }}</td>
+        <td class="mono">{{ e.delay_days if e.delay_days is not none else '-' }}</td>
+        <td>{{ '👁' if e.also_watchlisted else '' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

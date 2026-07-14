@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}SKU Sentinel | Forecast governance for demand planning{% endblock %}
+{% block content %}
+
+<div class="hero-duo">
+  <div class="hero-solo">
+    <div class="eyebrow">// forecast governance for retail &amp; CPG demand</div>
+    <h1 class="hero-h1">Your forecasts drift.<br>Know the <em>moment</em> they do.</h1>
+    <p class="hero-sub">
+      SKU Sentinel watches every demand forecast in your fleet. It catches drift and
+      broken data feeds within days, explains each problem in plain language, and
+      ranks what to fix by revenue at risk. No noise. No thousand-row reports.
+      An exception queue a planner can clear before their second coffee.
+    </p>
+    <div class="hero-ctas">
+      <a class="btn-primary" href="{{ url_for('index') }}">Open the live demo</a>
+      <a class="btn-ghost" href="{{ url_for('upload') }}">Monitor your own data</a>
+    </div>
+  </div>
+
+  <div class="radarcard">
+    <div class="radar">
+      <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+      <div class="radar-axis h"></div><div class="radar-axis v"></div>
+      <div class="sweep"></div>
+      <span class="blip" style="left:30%; top:38%"></span>
+      <span class="blip" style="left:58%; top:22%"></span>
+      <span class="blip" style="left:72%; top:55%"></span>
+      <span class="blip" style="left:44%; top:70%"></span>
+      <span class="blip" style="left:22%; top:60%"></span>
+      <span class="blip" style="left:63%; top:76%"></span>
+      <span class="blip alert a1" style="left:76%; top:32%"></span>
+      <span class="blip alert a2" style="left:34%; top:24%"></span>
+      <div class="radar-chip a1" style="left:52%; top:20%">scale x10 · Cheddar Cheese 1L</div>
+      <div class="radar-chip a2" style="left:12%; top:34%">bias +31% · Basmati Rice 1kg</div>
+    </div>
+    <div class="radar-caption">
+      <span class="mono-cap">fleet radar</span> · 200 SKUs · weekly sweep ·
+      <span class="cap-ok">193 ok</span> <span class="cap-bad">· 2 alerts</span>
+    </div>
+  </div>
+</div>
+
+<div class="console">
+  <div class="console-bar"><span></span><span></span><span></span>
+    <b>sentinel · weekly checkpoint</b></div>
+  <pre class="console-body"><span class="c-dim">$ sentinel run --fleet retail --window 28d</span>
+<span class="c-ok">ok  168 SKUs healthy</span>        <span class="c-dim">within calibrated tolerance</span>
+<span class="c-warn">wrn 27 SKUs watchlisted</span>  <span class="c-dim">signals persisting 2 of 3 checkpoints</span>
+<span class="c-bad">err 5 exceptions raised</span>  <span class="c-dim">$407,119 at risk over 28 days</span>
+
+<span class="c-bad">>> Cheddar Cheese 1L</span>   scale x10      <span class="c-dim">"pipeline bug, not demand. Quarantine the feed"</span>
+<span class="c-bad">>> Basmati Rice 1kg</span>    bias +31%      <span class="c-dim">"demand shifted after week 14. Retrain the model"</span>
+<span class="c-bad">>> Orange Juice 1L</span>     zeros 9d       <span class="c-dim">"feed outage: sales didn't stop, the data did"</span>
+
+<span class="c-dim">detection quality (vs. injected ground truth):</span> <span class="c-ok">recall 96% · precision 84% · 5 false alarms/6mo</span><span class="cursor">▊</span></pre>
+</div>
+
+{% if stats %}
+<div class="ticker">
+  <div class="tick"><b>{{ '%.0f'|format(stats.recall * 100) }}%</b> of drift events caught</div>
+  <div class="tick"><b>{{ '%.0f'|format(stats.precision * 100) }}%</b> of alarms were real</div>
+  <div class="tick"><b>{{ stats.false_positives }}</b> false alarms · {{ stats.n_skus }} SKUs · 6 months</div>
+  <div class="tick"><b>${{ "{:,.0f}".format(stats.rev_at_risk) }}</b> at risk, surfaced &amp; ranked</div>
+  <div class="tick c-dim">measured against ground truth, not eyeballed</div>
+</div>
+{% endif %}
+
+<h2 class="landing-h2" id="how">How it works</h2>
+<div class="rail">
+  <div class="railstep"><div class="railnum">01</div>
+    <h3>Calibrate</h3>
+    <p>Sentinel learns each product's normal (error tolerance, bias, noise) from a
+    clean slice of history. Every threshold is per-SKU, never one-size-fits-all.</p></div>
+  <div class="railstep"><div class="railnum">02</div>
+    <h3>Monitor</h3>
+    <p>Eight statistical checks run weekly on every product: accuracy bands, bias,
+    distribution drift (PSI/KS), sequential drift (Page-Hinkley), frozen feeds,
+    outages, unit breaks.</p></div>
+  <div class="railstep"><div class="railnum">03</div>
+    <h3>Diagnose</h3>
+    <p>Data bug or real demand shift? One needs a pipeline fix, the other a retrain,
+    and every exception says which, in plain language.</p></div>
+  <div class="railstep"><div class="railnum">04</div>
+    <h3>Act</h3>
+    <p>Exceptions ranked by revenue at risk, each with a recommended next action.
+    Human attention goes where the money is.</p></div>
+</div>
+
+<h2 class="landing-h2">Explore the toolkit</h2>
+<div class="toolrows">
+  <a class="toolrow" href="{{ url_for('index') }}">
+    <span class="toolname">Exception queue</span>
+    <span class="tooldesc">The daily driver: every flagged product, diagnosed and ranked by dollars at risk.</span>
+    <span class="toolgo">→</span></a>
+  <a class="toolrow" href="{{ url_for('models_page') }}">
+    <span class="toolname">Model bench</span>
+    <span class="tooldesc">Eight forecasting models, from seasonal naive to XGBoost to LSTM, in one fair, timed fight per product.</span>
+    <span class="toolgo">→</span></a>
+  <a class="toolrow" href="{{ url_for('explain_page') }}">
+    <span class="toolname">Explain</span>
+    <span class="tooldesc">What drives each product's demand, plus a measured demo of why naive promo uplift estimates lie.</span>
+    <span class="toolgo">→</span></a>
+  <a class="toolrow" href="{{ url_for('scorecard') }}">
+    <span class="toolname">Detection scorecard</span>
+    <span class="tooldesc">The monitor grades itself against ground truth: recall, precision, delay per event.</span>
+    <span class="toolgo">→</span></a>
+</div>
+
+<div class="ctaband">
+  <h2>Governance that scales with your catalog, not your headcount.</h2>
+  <p>Run the demo fleet, or upload a CSV of your own actuals &amp; forecasts and watch
+  Sentinel calibrate to your data in seconds.</p>
+  <div class="hero-ctas" style="justify-content:center">
+    <a class="btn-primary" href="{{ url_for('index') }}">Open the live demo</a>
+    <a class="btn-ghost" href="{{ url_for('upload') }}">Upload your data</a>
+  </div>
+</div>
+
+<div class="techrow">
+  <span>Built with</span>
+  <code>Python</code><code>scikit-learn</code><code>SciPy</code><code>statsmodels</code>
+  <code>XGBoost</code><code>LightGBM</code><code>PyTorch</code><code>Flask</code><code>Plotly</code>
+</div>
+
+{% endblock %}

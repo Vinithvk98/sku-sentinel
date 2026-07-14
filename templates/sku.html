@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ row.product if row else sku }} | SKU Sentinel{% endblock %}
+{% block content %}
+  <h1>{{ row.product if row and row.product else sku }}
+    <span class="dim-inline">{{ sku }}</span>
+    {% if row %}<span class="pill {{ row.status }}">{{ row.status }}</span>{% endif %}
+  </h1>
+
+  {% if src == 'demo' %}
+  <form method="get" class="picker" onchange="location='/sku/'+this.sku.value">
+    <label>Jump to SKU: <select name="sku">
+      {% for s in all_skus %}<option value="{{ s }}" {{ 'selected' if s == sku }}>{{ s }}</option>{% endfor %}
+    </select></label>
+  </form>
+  {% endif %}
+
+  {% if row %}<div class="note">{{ row.explanation }}<br>
+  <span class="dim">Recommended action: {{ row.recommended_action }}</span></div>{% endif %}
+
+  <div id="chart" class="chart"></div>
+  {% if tolerance %}<div id="tolchart" class="chart"></div>{% endif %}
+
+  {% if signals %}
+  <h2>Signals</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Check</th><th>Value</th><th>Threshold</th><th>Severity</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for s in signals %}
+      <tr><td class="mono">{{ s.date.strftime('%Y-%m-%d') }}</td><td class="mono">{{ s.check }}</td>
+      <td class="mono">{{ '%.3f'|format(s.value) }}</td><td class="mono">{{ '%.3f'|format(s.threshold) }}</td>
+      <td>{{ s.severity }}</td><td class="small">{{ s.action }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+<script>
+  // Data is embedded by Jinja as JSON, view-source to see what Flask sent.
+  const series = {{ series | tojson }};
+  const detected = {{ (row.first_detected.strftime('%Y-%m-%d') if row else None) | tojson }};
+  const event = {{ event | tojson }};
+
+  const traces = [
+    {x: series.dates, y: series.forecast, name: "forecast",
+     line: {color: "#2563eb", dash: "dot"}},
+    {x: series.dates, y: series.actual, name: "actual", line: {color: "#1c2333"}},
+  ];
+  const shapes = [], annotations = [];
+  function vline(x, color, dash, text) {
+    shapes.push({type: "line", x0: x, x1: x, yref: "paper", y0: 0, y1: 1,
+                 line: {color: color, width: 2, dash: dash}});
+    annotations.push({x: x, yref: "paper", y: 1.05, text: text, showarrow: false,
+                      font: {color: color, size: 11}});
+  }
+  if (event) vline(event.date, "#5b6478", "dash", "event: " + event.type);
+  if (detected) vline(detected, "#dc2626", null, "detected");
+  Plotly.newPlot("chart", traces,
+    {height: 380, margin: {l: 40, r: 20, t: 40, b: 40}, shapes: shapes,
+     annotations: annotations, legend: {orientation: "h"}}, {displayModeBar: false, responsive: true});
+
+  const tol = {{ tolerance | tojson }};
+  if (tol) {
+    Plotly.newPlot("tolchart", [
+      {x: tol.dates, y: tol.wape, name: "rolling WAPE (28d)", line: {color: "#1c2333"}},
+      {x: tol.dates, y: tol.tolerance, name: "tolerance", line: {color: "#dc2626", dash: "dash"}},
+    ], {height: 260, margin: {l: 40, r: 20, t: 40, b: 40},
+        title: {text: "Accuracy vs. calibrated tolerance", font: {size: 14}},
+        legend: {orientation: "h"}}, {displayModeBar: false, responsive: true});
+  }
+</script>
+{% endblock %}

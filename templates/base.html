@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!-- base.html: the layout every page inherits via Jinja's "extends" tag.
+     "block" sections are holes that child templates fill in.
+     (Fun fact: Jinja parses its tags even inside HTML comments,
+     so you can't write them literally here.) -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SKU Sentinel{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+</head>
+<body>
+<nav>
+  <a class="brand" href="{{ url_for('landing') }}">
+    <span class="beacon"></span>SKU<span class="brand-sep">/</span>SENTINEL
+  </a>
+  <div class="navlinks">
+    <a class="{{ 'active' if request.path == '/queue' }}" href="{{ url_for('index') }}">queue</a>
+    <a class="{{ 'active' if request.path == '/models' }}" href="{{ url_for('models_page') }}">bench</a>
+    <a class="{{ 'active' if request.path == '/explain' }}" href="{{ url_for('explain_page') }}">explain</a>
+    <a class="{{ 'active' if request.path == '/scorecard' }}" href="{{ url_for('scorecard') }}">scorecard</a>
+    <a class="{{ 'active' if request.path == '/upload' }}" href="{{ url_for('upload') }}">your data</a>
+  </div>
+  <span class="navstatus"><span class="pulse"></span>demo fleet · live</span>
+</nav>
+<main>
+  {% block content %}{% endblock %}
+</main>
+<footer>Statistical governance for demand forecasts · built by Vinith Kumar</footer>
+</body>
+</html>

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Model bench | SKU Sentinel{% endblock %}
+{% block content %}
+  <h1>Model bench</h1>
+  <p class="sub">Eight forecasting models, four families, one fair fight: every model
+  trains on the same history and is scored on the same untouched holdout (WAPE).
+  Watch which family wins on clean seasonal demand. The answer surprises people.</p>
+
+  <div class="card" style="align-items: start; flex-direction: column;">
+    <label>Product
+      <select id="sku">
+        {% for s in skus %}
+          <option value="{{ s }}">{{ labels.get(s, s) }} ({{ s }})</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <div class="modelgrid">
+      {% for name, m in registry.items() %}
+        <label class="modelbox {{ 'off' if not m.available }}" title="{{ m.blurb }}">
+          <input type="checkbox" name="model" value="{{ name }}"
+                 {{ 'checked' if m.available and name in ['seasonal_naive','ridge','hist_gb'] }}
+                 {{ 'disabled' if not m.available }}>
+          <b>{{ m.label }}</b>
+          <span class="family {{ m.family }}">{{ m.family.replace('_',' ') }}</span>
+          {% if not m.available %}
+            <span class="dim">unavailable: {{ import_errors.get(name, 'library not installed') | truncate(90) }}</span>
+          {% endif %}
+        </label>
+      {% endfor %}
+    </div>
+
+    <button id="run">Run the bench</button>
+    <span id="status" class="dim"></span>
+  </div>
+
+  <div id="results" style="display:none">
+    <h2>Leaderboard</h2>
+    <table id="board"></table>
+    <h2>Forecasts vs. reality (holdout window)</h2>
+    <div id="chart" class="chart"></div>
+  </div>
+
+<style>
+  .modelgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+               gap: 10px; width: 100%; }
+  .modelbox { display: flex; flex-direction: column; gap: 3px; border: 1px solid #e5e9f2;
+              border-radius: 10px; padding: 10px 12px; font-size: 13px; cursor: pointer; }
+  .modelbox.off { opacity: 0.55; cursor: not-allowed; }
+  .family { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px;
+            border-radius: 99px; padding: 1px 8px; width: fit-content; }
+  .family.baseline { background: #f1f5f9; color: #475569; }
+  .family.statistical { background: #dbeafe; color: #1d4ed8; }
+  .family.ml_ensemble { background: #dcfce7; color: #15803d; }
+  .family.deep { background: #fae8ff; color: #a21caf; }
+  .champ { background: #fef9c3; }
+</style>
+
+<script>
+  const COLORS = {seasonal_naive: "#94a3b8", ridge: "#2563eb", holt_winters: "#0891b2",
+                  random_forest: "#16a34a", hist_gb: "#15803d", xgboost: "#ca8a04",
+                  lightgbm: "#65a30d", lstm: "#a21caf"};
+
+  document.getElementById("run").onclick = async () => {
+    const sku = document.getElementById("sku").value;
+    const models = [...document.querySelectorAll("input[name=model]:checked")]
+                     .map(c => c.value);
+    if (!models.length) { alert("Pick at least one model."); return; }
+    const status = document.getElementById("status");
+    status.textContent = "Training " + models.length + " model(s)… (LSTM/boosting can take ~30s)";
+    document.getElementById("run").disabled = true;
+    try {
+      const r = await fetch(`/api/bench/${sku}?models=${models.join(",")}`);
+      const data = await r.json();
+      if (data.error) throw new Error(data.error);
+      render(data);
+      status.textContent = "";
+    } catch (e) {
+      status.textContent = "Error: " + e.message;
+    } finally {
+      document.getElementById("run").disabled = false;
+    }
+  };
+
+  function render(data) {
+    document.getElementById("results").style.display = "block";
+
+    // leaderboard, sorted by WAPE
+    const rows = Object.entries(data.models)
+      .map(([name, m]) => ({name, ...m}))
+      .sort((a, b) => (a.wape ?? 9e9) - (b.wape ?? 9e9));
+    let html = `<thead><tr><th></th><th>Model</th><th>Family</th><th>WAPE ↓</th>
+                <th>MAE</th><th>Bias</th><th>Time (s)</th></tr></thead><tbody>`;
+    for (const m of rows) {
+      const champ = m.name === data.champion;
+      html += `<tr class="${champ ? 'champ' : ''}">
+        <td>${champ ? "🏆" : ""}</td><td><b>${m.label}</b></td>
+        <td>${m.family.replace("_", " ")}</td>
+        <td class="mono">${m.wape != null ? (m.wape * 100).toFixed(1) + "%" : "-"}</td>
+        <td class="mono">${m.mae ?? "-"}</td>
+        <td class="mono">${m.bias != null ? (m.bias * 100).toFixed(1) + "%" : "-"}</td>
+        <td class="mono">${m.seconds ?? "-"}</td></tr>`;
+      if (m.error) html += `<tr><td></td><td colspan="6" class="dim">↳ ${m.error}</td></tr>`;
+    }
+    document.getElementById("board").innerHTML = html + "</tbody>";
+
+    // chart: 7-day smoothed lines so families are visually separable
+    const smooth = a => a.map((_, i) =>
+      a.slice(Math.max(0, i - 6), i + 1).reduce((s, v) => s + v, 0) /
+      Math.min(i + 1, 7));
+    const traces = [{x: data.dates, y: smooth(data.actual), name: "ACTUAL",
+                     line: {color: "#1c2333", width: 3}}];
+    for (const [name, m] of Object.entries(data.models)) {
+      if (!m.forecast) continue;
+      traces.push({x: data.dates, y: smooth(m.forecast), name: m.label,
+                   line: {color: COLORS[name], width: 1.8,
+                          dash: name === data.champion ? null : "dot"}});
+    }
+    Plotly.newPlot("chart", traces,
+      {height: 440, margin: {l: 40, r: 20, t: 20, b: 40},
+       legend: {orientation: "h"},
+       yaxis: {title: "units/day (7-day smoothed)"}}, {displayModeBar: false, responsive: true});
+  }
+</script>
+{% endblock %}
