@@ -1,0 +1,20 @@
+# SKU Sentinel configuration — tune behavior without touching code.
+# Delete this file to fall back to built-in defaults.
+
+simulation:
+  n_skus: 200          # products in the synthetic retailer
+  days: 730            # 2 years of daily history
+  events_per_type: 4   # injected problems per event type (7 types)
+  seed: 42             # change to re-run the experiment on a new random world
+
+monitor:
+  window_days: 28          # trailing window each check looks at
+  checkpoint_every: 7      # how often checks run (days)
+  wape_factor: 1.5         # accuracy tolerance = max(factor x baseline, baseline + 0.10)
+  bias_floor: 0.30         # min relative-bias delta to alarm
+  persist_checkpoints: 3   # consecutive checkpoints before a model-health alarm
+  psi_base_threshold: 0.25 # finite-sample null correction is added automatically
+  ks_p_value: 0.001        # KS test significance
+
+triage:
+  horizon_days: 28     # revenue-at-risk projection horizon
